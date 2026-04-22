@@ -30,7 +30,7 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/easy.csv`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/${difficulty}.csv`);
         if (!response.ok) throw new Error('Failed to fetch CSV');
         
         const csv = await response.text();
