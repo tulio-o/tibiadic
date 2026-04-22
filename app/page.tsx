@@ -1,65 +1,220 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+
+interface Row {
+  [key: string]: string;
+}
+
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+const csvDescriptions: Record<Difficulty, string> = {
+  easy: 'For easy rerolls!',
+  medium: 'Meh',
+  hard: 'These results have been recorded on a 750~ Monk. Your kills/hr may differ depending on your level, vocation and skill.',
+};
 
 export default function Home() {
+  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
+  const [data, setData] = useState<Row[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  const ITEMS_PER_PAGE = 25;
+
+  useEffect(() => {
+    const loadCSV = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/${difficulty}.csv`);
+        if (!response.ok) throw new Error('Failed to fetch CSV');
+        
+        const csv = await response.text();
+        const lines = csv.trim().split('\n');
+        
+        if (lines.length === 0) throw new Error('CSV is empty');
+        
+        // Parse headers
+        const headerRow = lines[0].split(',').map(h => h.trim());
+        setHeaders(headerRow);
+        
+        // Parse data rows
+        const rows = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim());
+          return headerRow.reduce((obj: Row, header, idx) => {
+            obj[header] = values[idx] || '';
+            return obj;
+          }, {} as Row);
+        });
+        
+        setData(rows);
+        setLoading(false);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError(errorMessage);
+        setLoading(false);
+      }
+    };
+
+    loadCSV();
+  }, [difficulty]);
+
+  // Filter data based on search query
+  const filteredData = data.filter(row =>
+    row.Name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">CSV Data Table</h1>
+        
+        {/* Difficulty Tabs */}
+        <div className="flex gap-4 mb-6">
+          {(['easy', 'medium', 'hard'] as const).map(diff => (
+            <button
+              key={diff}
+              onClick={() => {
+                setDifficulty(diff);
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
+              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                difficulty === diff
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              {diff.charAt(0).toUpperCase() + diff.slice(1)}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Description */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+          <p className="text-blue-900">{csvDescriptions[difficulty]}</p>
         </div>
-      </main>
+
+        {/* Search Input */}
+        <div className="mb-8">
+          <p className='text-blue-900'>Search by Creature:</p>
+          <input
+            type="text"
+            placeholder="Search by Name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+        </div>
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-gray-600">Loading CSV data...</p>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-red-600">Error: {error}</p>
+          </div>
+        ) : (
+          <>
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      {headers.map((header) => (
+                        <th
+                          key={header}
+                          className="px-6 py-3 text-left text-sm font-semibold text-gray-900"
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {paginatedData.length > 0 ? (
+                      paginatedData.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          {headers.map((header) => (
+                            <td
+                              key={`${idx}-${header}`}
+                              className="px-6 py-4 text-sm text-gray-700"
+                            >
+                              {row[header]}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={headers.length} className="px-6 py-4 text-center text-gray-500">
+                          No results found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination Info and Controls */}
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing {paginatedData.length > 0 ? startIndex + 1 : 0}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredData.length)} of {filteredData.length} rows
+              </p>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Previous
+                </button>
+                
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                        currentPage === page
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
