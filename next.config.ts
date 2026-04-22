@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "export",
-  basePath: "/tulio-o/tibiadic",
-  assetPrefix: "/tulio-o/tibiadic",
+  basePath: "/tibiadic",
+  assetPrefix: "/tibiadic/",
 };
 
 export default nextConfig;
